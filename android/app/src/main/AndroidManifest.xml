@@ -4,6 +4,7 @@
         android:label="warehouse"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:fullBackupContent="false">
         <!-- for sake of FlutterSecureStorage set both fullBackupContent and allowBackup to false  -->
