@@ -1,0 +1,4 @@
+enum SearchingKey{
+  products,
+  companies
+}

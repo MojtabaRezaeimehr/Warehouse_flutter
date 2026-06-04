@@ -1,0 +1,4 @@
+enum ScanType{
+  add,
+  delete
+}
