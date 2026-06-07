@@ -47,21 +47,76 @@ class UserService extends UserRepo {
       int code = response.statusCode ?? -1;
 
       if (code >= 200 && code < 300) {
-        if (response.data[0]["result"] == "ok") {
+        // Ensure response.data is a List and has at least two elements
+        if (response.data is List && response.data.length >= 2) {
+          // Check the user data part first
+          if (response.data[0] is Map && response.data[0]["result"] == "ok") {
           //create a new user instance
           User user = User.fromJson(response.data[0]);
+
+            // Now, check the token part (response.data[1])
+            var tokenData = response.data[1];
+            if (tokenData is Map && tokenData.containsKey("token")) {
+              var token = tokenData["token"];
+              // Check if the token itself is a String
+              if (token is String) {
           return ApiResponseSucceeded(
-            values: ValidateUserResponse(
-              user: user,
-              token: response.data[1]["token"],
-            ),
+                  values: ValidateUserResponse(user: user, token: token),
+                );
+              } else {
+                // The token field is not a String, it's likely an error object
+                var errorMessage = token is Map && token.containsKey('message')
+                    ? token['message']?.toString() ?? 'Unknown token error'
+                    : 'Invalid token format received';
+      _logRepo.logThis(
+        Log(
+            date: DateTime.now(),
+                      desc: "API returned invalid token format: $token",
+            tag: "API",
+                      logLevel: LogLevel.warning),
+      );
+                return ApiResponseFailed(message: errorMessage);
+    }
+            } else {
+              // 'token' key not found in the second element (response.data[1])
+              _logRepo.logThis(
+                Log(
+                    date: DateTime.now(),
+                    desc: "API response missing 'token' key in second element",
+                    tag: "API",
+                    logLevel: LogLevel.warning),
+              );
+              return ApiResponseFailed(
+                  message: "Login successful, but token is missing.");
+  }
+          } else if (response.data[0] is Map && response.data[0]["result"] == "notfound") {
+            return ApiResponseFailed(
+                message: Translations.wrongUserNameOrPassword.name.tr());
+          } else {
+            // Handle cases where response.data[0] is not a Map or result is unexpected
+            _logRepo.logThis(
+              Log(
+                  date: DateTime.now(),
+                  desc: "API returned unexpected format for user data",
+                  tag: "API",
+                  logLevel: LogLevel.warning),
+            );
+            return ApiResponseFailed(message: "Unexpected user data format.");
+}
+        } else {
+          // Handle cases where response.data is not a List or has incorrect length
+          _logRepo.logThis(
+            Log(
+                date: DateTime.now(),
+                desc: "API response data is not a List or has incorrect length",
+                tag: "API",
+                logLevel: LogLevel.warning),
           );
-        } else if (response.data[0]["result"] == "notfound") {
-          return ApiResponseFailed(
-              message: Translations.wrongUserNameOrPassword.name.tr());
+          return ApiResponseFailed(message: "Unexpected API response structure.");
         }
       }
 
+      // Handle non-2xx status codes
       return ApiResponseFailed(
         message: response.statusMessage.toString(),
         statusCode: response.statusCode,
@@ -74,7 +129,18 @@ class UserService extends UserRepo {
             tag: "API",
             logLevel: LogLevel.error),
       );
+      // Also log the structure of e if it's a DioError for more details
+      if (e is DioError) {
+        _logRepo.logThis(
+          Log(
+              date: DateTime.now(),
+              desc: "DioError details: ${e.response?.data ?? e.message}",
+              tag: "API",
+              logLevel: LogLevel.error),
+        );
+      }
       return ApiResponseFailed(message: e.toString());
     }
   }
 }
+

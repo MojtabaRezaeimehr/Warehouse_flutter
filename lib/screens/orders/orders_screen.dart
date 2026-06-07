@@ -34,15 +34,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
     orderCubit = BlocProvider.of<OrderCubit>(context);
     userAuthCubit = BlocProvider.of<UserAuthCubit>(context);
 
+    // Fetch orders only if the state isn't already FetchedOrders
     if (orderCubit.state is! FetchedOrders) {
       orderCubit.fetchOrdersForUser(userAuthCubit);
     }
 
     scrollController.addListener(() {
+      // Check if we are near the end of the scrollable area
       if (scrollController.position.pixels ==
-          (scrollController.position.maxScrollExtent)) {
+          scrollController.position.maxScrollExtent) {
+        // Fetch more orders only if there might be more
+        if (orderCubit.state is FetchedOrders && (orderCubit.state as FetchedOrders).hasMore) {
         orderCubit.fetchMoreOrders(userAuthCubit);
       }
+  }
     });
 
     super.initState();
@@ -97,7 +102,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 return const OrdersLoadingWidget();
               } else if (state is FetchingOrdersError) {
                 return Column(
-                  spacing: 10,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.warning, size: 50),
@@ -108,42 +112,55 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ],
                 );
               } else if (state is FetchedOrders) {
-                if (state.orders.isEmpty) {
-                  return Center(
-                    child: Text(Translations.foundNoOrders.name.tr()),
-                  );
-                }
-                //filter orders
+                // Filter orders based on selected chips and queried ID
+                // Convert to List immediately for predictable behavior
                 var filteredOrders = state.orders.where(
                   (element) =>
                       selectedChips.contains(element.orderType) &&
                       (queriedId != null
                           ? element.id.toString().contains("$queriedId")
                           : true),
-                );
+                ).toList(); // Convert to List
 
-                if (filteredOrders.length < 5 && state.hasMore) {
-                  //filtered order maybe empty ,keep fecthing more orders
+                // Display "No orders found" if the filtered list is empty
+                if (filteredOrders.isEmpty) {
+                  // Check if more orders exist, if so, attempt to fetch more.
+                  // This handles cases where filtering might empty the list temporarily.
+                  if (state.hasMore) {
+                    // Trigger fetch and show loading indicator while doing so
+                    // This helps to avoid showing "No orders found" if more are coming
                   orderCubit.fetchMoreOrders(userAuthCubit);
-                } else if (filteredOrders.isEmpty && !state.hasMore) {
-                  return Center(
+                    return const OrdersLoadingWidget();
+                  } else {
+                    // If no more orders are available and list is empty, show the message
+                    return Center(
                     child: Text(Translations.foundNoOrders.name.tr()),
                   );
                 }
+                }
 
+                // If there are filtered orders and we have few items but more data is available,
+                // trigger fetch for more data to ensure smoother scrolling.
+                if (filteredOrders.length < 5 && state.hasMore) {
+                  orderCubit.fetchMoreOrders(userAuthCubit);
+                }
+
+                // Build the ListView. We know filteredOrders is not empty here.
                 return ListView.separated(
                   controller: scrollController,
                   itemBuilder: (context, index) {
+                    // Access element at index. filteredOrders.length is guaranteed to be >= 1 here.
                     return OrderCard(
                       order: filteredOrders.elementAt(index),
                     );
                   },
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
-                  itemCount: filteredOrders.length,
+                  itemCount: filteredOrders.length, // Use the length of the filtered list
                 );
               } else {
-                throw UnimplementedError();
+                // Fallback for any unhandled states
+                return const Center(child: Text('Unknown state'));
               }
             },
           ),
@@ -159,9 +176,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void chipsOnSelect(OrderTypes orderType) {
-    //in case this type i already selected and
-    // not the only selected type, remove it
-
+    setState(() { // Ensure setState is called to trigger rebuild
     if (selectedChips.contains(orderType)) {
       if (selectedChips.length > 1) {
         selectedChips.remove(orderType);
@@ -169,6 +184,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     } else {
       selectedChips.add(orderType);
     }
-    setState(() {});
+    });
   }
 }
+

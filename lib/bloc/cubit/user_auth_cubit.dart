@@ -35,7 +35,9 @@ class UserAuthCubit extends Cubit<UserAuthState> {
       );
       return;
     }
+    print('before validateuser..........');
     var response = await _userRepo.validateUser(username, password);
+    print('after validateuser..........');
     if (response is ApiResponseSucceeded) {
       var castedResp = (response as ApiResponseSucceeded<ValidateUserResponse>);
       //encrypt and save token

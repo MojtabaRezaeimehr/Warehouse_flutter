@@ -33,11 +33,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // --- Add Logging Here ---
+    print('HomeScreen - activeIndex: $activeIndex');
+    print('HomeScreen - _screens.length: ${_screens.length}');
+    // Ensure activeIndex is within bounds before accessing _screens
+    if (activeIndex < 0 || activeIndex >= _screens.length) {
+      // This condition should ideally never be met if setState is working correctly,
+      // but it's a failsafe. If it triggers, activeIndex is definitely out of bounds.
+      // We can try to reset it or display an error. For now, let's just print.
+      print('HomeScreen ERROR: activeIndex is out of bounds!');
+      // Optionally, reset to a valid index:
+      // activeIndex = 0; // Or choose initial index
+      // return Center(child: Text('Error: Invalid screen index'));
+    }
+    // --- End Logging ---
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SafeArea(
           child: Padding(
         padding: const EdgeInsets.all(15),
+        // The actual error happens when `_screens[activeIndex]` is accessed with an invalid index.
         child: _screens[activeIndex],
       )),
       floatingActionButton: GestureDetector(
@@ -106,3 +122,4 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 }
+
