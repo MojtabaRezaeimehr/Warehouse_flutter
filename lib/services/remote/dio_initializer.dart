@@ -9,7 +9,12 @@ class DioInitializer {
 
     if (_dio == null) {
       _dio = Dio(
-        BaseOptions(baseUrl: config.baseUrl),
+        BaseOptions(
+          baseUrl: config.baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 10),
+        ),
       );
       _dio!.interceptors.add(_loggingInterceptor());
     }
